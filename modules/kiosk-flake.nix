@@ -116,7 +116,7 @@ in
 
         includeInstaller = lib.mkOption {
           type = lib.types.bool;
-          default = false;
+          default = true;
           description = "Include disko + uinstall modules for unattended NixOS installation";
         };
 
