@@ -52,58 +52,32 @@ in
       default = false;
       description = "Include disko + uinstall modules for unattended NixOS installation";
     };
+
+    rotate = lib.mkOption {
+      type = lib.types.enum [ 0 90 180 270 ];
+      default = 0;
+      description = "Screen rotation in degrees";
+    };
   };
 
   config = lib.mkIf cfg.enable {
 
     perSystem = { pkgs, ... }:
     let
-      qtile = lib.getExe pkgs.python3Packages.qtile;
-      bwrap = lib.getExe pkgs.bubblewrap;
-
       builtinQtileConfig = ./qtileconf.py;
       effectiveQtileConfig = if cfg.qtileConfig == null
         then builtinQtileConfig
         else cfg.qtileConfig;
 
-      unshareScript = pkgs.writeShellScript "bwrap-sandbox" ''
-        if [ $$ -ne 1 ]; then
-            sandbox=$(mktemp -d)
-            mkdir "$sandbox"/{tmp,home}
-            ${bwrap} --unshare-user --unshare-pid --die-with-parent --as-pid-1 \
-                 --proc /proc \
-                 --dev-bind /dev /dev \
-                 --bind /etc /etc \
-                 --bind /nix /nix \
-                 --bind /run /run \
-                 --bind /sys /sys \
-                 --bind "$sandbox"/tmp /tmp \
-                 --bind "$sandbox"/home "$HOME" \
-                 --bind-try /tmp/.X11-unix/X"$DISPLAY"{,} \
-                 --bind-try "''${XAUTHORITY:-/nothing}"{,} \
-                 -- "$0" "$@"
-            ret=$?
-            rm -rf "$sandbox"
-            exit $ret
-        fi
-        exec "$@"
-      '';
-
-      appWrapped = pkgs.writeShellScript "app-wrapped" ''
-        exec ${unshareScript} ${effectiveCommand}
-      '';
-
-      appRestarting = pkgs.writeShellScript "app-restarter" ''
-        while true; do
-            ${appWrapped}
-            sleep 1
-        done
-      '';
+      scripts = import ./scripts.nix {
+        inherit pkgs lib;
+        command = effectiveCommand;
+        qtileConfigPath = effectiveQtileConfig;
+        rotate = cfg.rotate;
+      };
     in
     {
-      packages.default = pkgs.writeShellScriptBin "kiosk" ''
-        CMD=${appRestarting} exec ${unshareScript} ${qtile} start -c ${effectiveQtileConfig} -b wayland "$@"
-      '';
+      packages.default = scripts.launcher;
     };
 
     flake.nixosConfigurations."${cfg.hostName}" = inputs.nixpkgs.lib.nixosSystem {
@@ -121,6 +95,7 @@ in
               command = effectiveCommand;
               user = cfg.user;
               qtileConfig = cfg.qtileConfig;
+              rotate = cfg.rotate;
             };
 
             services.openssh.settings.permitRootLogin = false;
