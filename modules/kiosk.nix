@@ -64,6 +64,11 @@ in
     services.dbus.enable = true;
     security.polkit.enable = true;
 
+    # Отключаем инфобар Chromium «Перевести страницу?»
+    environment.etc."chromium/policies/managed/policy.json".text = builtins.toJSON {
+      TranslateEnabled = false;
+    };
+
     hardware = {
       enableRedistributableFirmware = true;
       firmware = [ pkgs.linux-firmware ];
