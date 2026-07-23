@@ -40,18 +40,14 @@ let
     done
   '';
 
-  # Прячет курсор мыши
-  hideCursor = pkgs.writeShellScript "hide-cursor" ''
-    sleep 3
-    exec ${pkgs.unclutter-xfixes}/bin/unclutter --timeout 1
-  '';
-
   rotateAndRun = pkgs.writeShellScript "roteae-and-run" (
     (if rotate == 0 then "" else ''
         OUTPUT=$(${wlrRandR} --json | ${jq} -r '.[0].name')
         ${wlrRandR} --output "$OUTPUT" --transform ${toString rotate}
-    '') + ''
-    ${hideCursor} &
+    '') +
+    # Прячет курсор мыши
+    ''
+    ${pkgs.unclutter-xfixes}/bin/unclutter --timeout 1 &
     exec ${appRestarting}
     '');
 
