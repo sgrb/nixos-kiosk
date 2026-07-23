@@ -33,6 +33,7 @@ let
             disko.nixosModules.default
             uinstall.nixosModules.simpleDisko
           ]
+          ++ lib.optionals (kcfg.extraModule != null) [ kcfg.extraModule ]
           ++ [
             ./kiosk.nix
             ({ pkgs, ... }: {
@@ -44,8 +45,18 @@ let
                 rotate = kcfg.rotate;
               };
 
-              services.openssh.settings.permitRootLogin = false;
-              users.users.root.password = kcfg.rootPassword;
+              services.openssh = {
+                enable = kcfg.sshKeys != [];
+                settings = {
+                  permitRootLogin = if kcfg.sshKeys != [] then "prohibit-password" else false;
+                };
+              };
+
+              users.users.root = {
+                password = kcfg.rootPassword;
+                openssh.authorizedKeys.keys = kcfg.sshKeys;
+              };
+              users.users.${kcfg.user}.openssh.authorizedKeys.keys = kcfg.sshKeys;
 
               environment.systemPackages = with pkgs; [
                 iw wirelesstools psmisc
@@ -124,6 +135,18 @@ in
           type = lib.types.enum [ 0 90 180 270 ];
           default = 0;
           description = "Screen rotation in degrees";
+        };
+
+        sshKeys = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [];
+          description = "SSH public keys for root and kiosk user";
+        };
+
+        extraModule = lib.mkOption {
+          type = with lib.types; unspecified;
+          default = null;
+          description = "Optional NixOS module (path or inline) to add to the system configuration";
         };
       };
     }));
