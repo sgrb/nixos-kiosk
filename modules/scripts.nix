@@ -44,7 +44,10 @@ let
     (if rotate == 0 then "" else ''
         OUTPUT=$(${wlrRandR} --json | ${jq} -r '.[0].name')
         ${wlrRandR} --output "$OUTPUT" --transform ${toString rotate}
-    '') + ''
+    '') +
+    # Прячет курсор мыши
+    ''
+    ${pkgs.unclutter-xfixes}/bin/unclutter --timeout 1 &
     exec ${appRestarting}
     '');
 
